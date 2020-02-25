@@ -4,63 +4,98 @@ CREATE TYPE "products_status" AS ENUM (
   'running_low'
 );
 
+CREATE TYPE "housing_types" AS ENUM (
+  'shared_apartment',
+  'house',
+  'social_housing'
+);
+
+CREATE TYPE "housing_status" AS ENUM (
+  'seeking',
+  'registered',
+  'other'
+);
+
+CREATE TYPE "health_status" AS ENUM (
+  'public_insurance',
+  'private_insurance',
+  'social_welfare',
+  'not_insured'
+);
+
+CREATE TYPE "education_status" AS ENUM (
+  'primary_school',
+  'middle_school',
+  'high_school',
+  'vocational_school',
+  'graduate_school',
+  'post_graduate_school'
+);
+
+CREATE TYPE "labour_status" AS ENUM (
+  'full_time_employed',
+  'part_time_employed',
+  'work_school',
+  'seeking',
+  'underage'
+);
+
 CREATE TABLE "users" (
   "id" SERIAL PRIMARY KEY,
   "full_name" varchar,
   "created_at" timestamp,
-  "country_code" int
-);
-
-CREATE TABLE "merchants" (
-  "id" int PRIMARY KEY,
-  "merchant_name" varchar,
   "country_code" int,
-  "created at" varchar,
-  "admin_id" int
+  "facebook" email,
+  "twitter" email,
+  "age" int NOT NULL,
+  "housing_id" int NOT NULL,
+  "education_id" int NOT NULL,
+  "transversal_id" int NOT NULL,
+  "health_id" int NOT NULL,
+  "labour_id" int NOT NULL
 );
 
-CREATE TABLE "countries" (
-  "code" int PRIMARY KEY,
-  "name" varchar,
-  "continent_name" varchar
-);
-
-CREATE TABLE "order_items" (
-  "order_id" int,
-  "product_id" int,
-  "quantity" int DEFAULT 1
-);
-
-CREATE TABLE "orders" (
+CREATE TABLE "housing" (
   "id" int PRIMARY KEY,
-  "user_id" int UNIQUE NOT NULL,
-  "status" varchar,
-  "created_at" varchar
+  "status" housing_status,
+  "address" varchar,
+  "housing_type" housing_types
 );
 
-CREATE TABLE "products" (
+CREATE TABLE "education" (
   "id" int PRIMARY KEY,
-  "name" varchar,
-  "merchant_id" int NOT NULL,
-  "price" int,
-  "status" products_status,
-  "created_at" datetime DEFAULT (now())
+  "status" education_status
 );
 
-ALTER TABLE "merchants" ADD FOREIGN KEY ("admin_id") REFERENCES "users" ("id");
+CREATE TABLE "transversal" (
+  "id" int PRIMARY KEY,
+  "status" transversal_status
+);
 
-ALTER TABLE "users" ADD FOREIGN KEY ("country_code") REFERENCES "countries" ("code");
+CREATE TABLE "health" (
+  "id" int PRIMARY KEY,
+  "status" housing_status
+);
 
-ALTER TABLE "merchants" ADD FOREIGN KEY ("country_code") REFERENCES "countries" ("code");
+CREATE TABLE "labour" (
+  "id" int PRIMARY KEY,
+  "status" labour_status
+);
 
-ALTER TABLE "order_items" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+CREATE TABLE "world_countries" (
+  "country_code" int PRIMARY KEY,
+  "name" varchar,
+  "region" varchar
+);
 
-ALTER TABLE "order_items" ADD FOREIGN KEY ("product_id") REFERENCES "products" ("id");
+ALTER TABLE "users" ADD FOREIGN KEY ("country_code") REFERENCES "world_countries" ("country_code");
 
-ALTER TABLE "products" ADD FOREIGN KEY ("merchant_id") REFERENCES "merchants" ("id");
+ALTER TABLE "health" ADD FOREIGN KEY ("id") REFERENCES "users" ("health_id");
 
-CREATE INDEX "product_status" ON "products" ("merchant_id", "status");
+ALTER TABLE "transversal" ADD FOREIGN KEY ("id") REFERENCES "users" ("transversal_id");
 
-CREATE UNIQUE INDEX ON "products" ("id");
+ALTER TABLE "education" ADD FOREIGN KEY ("id") REFERENCES "users" ("education_id");
 
-COMMENT ON COLUMN "orders"."created_at" IS 'When order created';
+ALTER TABLE "labour" ADD FOREIGN KEY ("id") REFERENCES "users" ("labour_id");
+
+ALTER TABLE "housing" ADD FOREIGN KEY ("id") REFERENCES "users" ("housing_id");
