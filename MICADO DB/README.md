@@ -8,3 +8,5 @@ There are these components that will need a DB schema:
 - Weblate translation management platform
 
 All these components will be hosted on a single MICADO database and each will receive its own schema and a dedicated user; in this way each account will access and manage its own tables and there will be no confision or risk of interference between different softwares.
+
+![DB Diagram](Diagram.png)
