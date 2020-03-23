@@ -20,6 +20,11 @@ Examples can be:
 
 In the corresponding folder we'll create a single folder for each process with all the available information: process description, steps, document samples/templates.
 
+## MICADO DB
+This folder host the schema for Micado DB.
+
+All changes and comments on the DB will be managed in this repositories with issues and Push Requests.
+
 ### Funded by
 
 ![EU Logo](https://github.com/micado-eu/MICADO/blob/master/img/Flag_of_Europe.svg_.png)This project has received funding from the European Union’s H2020 Innovation Action under Grant Agreement No 822717.
