@@ -59,7 +59,6 @@ ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_validated_by_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_user_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_validable_by_user_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_validable_by_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_document_type_id_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_translation DROP CONSTRAINT IF EXISTS document_type_translation_lang_fkey;
@@ -318,8 +317,7 @@ CREATE TABLE micadoapp.document_type_translation (
 
 CREATE TABLE micadoapp.document_type_validator (
     document_type_id smallint NOT NULL,
-    validable_by_tenant integer,
-    validable_by_user integer
+    validable_by_tenant integer
 );
 
 
@@ -1534,7 +1532,7 @@ COPY micadoapp.document_type_translation (id, lang, document, description, trans
 -- Data for Name: document_type_validator; Type: TABLE DATA; Schema: micadoapp; Owner: -
 --
 
-COPY micadoapp.document_type_validator (document_type_id, validable_by_tenant, validable_by_user) FROM stdin;
+COPY micadoapp.document_type_validator (document_type_id, validable_by_tenant) FROM stdin;
 \.
 
 
@@ -2213,15 +2211,7 @@ ALTER TABLE ONLY micadoapp.document_type_validator
 --
 
 ALTER TABLE ONLY micadoapp.document_type_validator
-    ADD CONSTRAINT document_type_validator_validable_by_tenant_fkey FOREIGN KEY (validable_by_tenant) REFERENCES micadoapp."UM_USER"("UM_TENANT_ID");
-
-
---
--- Name: document_type_validator document_type_validator_validable_by_user_fkey; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
---
-
-ALTER TABLE ONLY micadoapp.document_type_validator
-    ADD CONSTRAINT document_type_validator_validable_by_user_fkey FOREIGN KEY (validable_by_user) REFERENCES micadoapp."UM_USER"("UM_ID");
+    ADD CONSTRAINT document_type_validator_validable_by_tenant_fkey FOREIGN KEY (validable_by_tenant) REFERENCES micadoapp."UM_TENANT"("UM_ID");
 
 
 --
