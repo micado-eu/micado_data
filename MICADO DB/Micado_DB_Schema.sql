@@ -59,7 +59,6 @@ ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_validated_by_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_user_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_user_id_fkey;
-ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_validable_by_user_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_validable_by_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_document_type_id_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_translation DROP CONSTRAINT IF EXISTS document_type_translation_lang_fkey;
@@ -241,7 +240,8 @@ CREATE TABLE micadoapp.document (
     validation_date timestamp without time zone,
     validated_by_tenant integer,
     validated_by_user integer,
-    uploaded_by_me boolean DEFAULT false NOT NULL
+    uploaded_by_me boolean DEFAULT false NOT NULL,
+    expiration_date timestamp without time zone
 );
 
 
@@ -294,8 +294,16 @@ CREATE TABLE micadoapp.document_type (
     icon text,
     issuer character varying(20),
     model text,
-    validable boolean DEFAULT false NOT NULL
+    validable boolean DEFAULT false NOT NULL,
+    validity_duration smallint
 );
+
+
+--
+-- Name: COLUMN document_type.validity_duration; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document_type.validity_duration IS 'the duration of the document in days';
 
 
 --
@@ -318,8 +326,7 @@ CREATE TABLE micadoapp.document_type_translation (
 
 CREATE TABLE micadoapp.document_type_validator (
     document_type_id smallint NOT NULL,
-    validable_by_tenant integer,
-    validable_by_user integer
+    validable_by_tenant integer
 );
 
 
@@ -1510,7 +1517,7 @@ COPY micadoapp."UM_USER" ("UM_ID", "UM_USER_NAME", "UM_USER_PASSWORD", "UM_SALT_
 -- Data for Name: document; Type: TABLE DATA; Schema: micadoapp; Owner: -
 --
 
-COPY micadoapp.document (id, picture, document_type, user_id, user_tenant, ask_validate_by_tenant, validated, validation_date, validated_by_tenant, validated_by_user, uploaded_by_me) FROM stdin;
+COPY micadoapp.document (id, picture, document_type, user_id, user_tenant, ask_validate_by_tenant, validated, validation_date, validated_by_tenant, validated_by_user, uploaded_by_me, expiration_date) FROM stdin;
 \.
 
 
@@ -1518,7 +1525,7 @@ COPY micadoapp.document (id, picture, document_type, user_id, user_tenant, ask_v
 -- Data for Name: document_type; Type: TABLE DATA; Schema: micadoapp; Owner: -
 --
 
-COPY micadoapp.document_type (id, icon, issuer, model, validable) FROM stdin;
+COPY micadoapp.document_type (id, icon, issuer, model, validable, validity_duration) FROM stdin;
 \.
 
 
@@ -1534,7 +1541,7 @@ COPY micadoapp.document_type_translation (id, lang, document, description, trans
 -- Data for Name: document_type_validator; Type: TABLE DATA; Schema: micadoapp; Owner: -
 --
 
-COPY micadoapp.document_type_validator (document_type_id, validable_by_tenant, validable_by_user) FROM stdin;
+COPY micadoapp.document_type_validator (document_type_id, validable_by_tenant) FROM stdin;
 \.
 
 
@@ -2213,15 +2220,7 @@ ALTER TABLE ONLY micadoapp.document_type_validator
 --
 
 ALTER TABLE ONLY micadoapp.document_type_validator
-    ADD CONSTRAINT document_type_validator_validable_by_tenant_fkey FOREIGN KEY (validable_by_tenant) REFERENCES micadoapp."UM_USER"("UM_TENANT_ID");
-
-
---
--- Name: document_type_validator document_type_validator_validable_by_user_fkey; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
---
-
-ALTER TABLE ONLY micadoapp.document_type_validator
-    ADD CONSTRAINT document_type_validator_validable_by_user_fkey FOREIGN KEY (validable_by_user) REFERENCES micadoapp."UM_USER"("UM_ID");
+    ADD CONSTRAINT document_type_validator_validable_by_tenant_fkey FOREIGN KEY (validable_by_tenant) REFERENCES micadoapp."UM_TENANT"("UM_ID");
 
 
 --
