@@ -73,6 +73,7 @@ DROP INDEX IF EXISTS micadoapp."INDEX_UM_TENANT_UM_DOMAIN_NAME";
 ALTER TABLE IF EXISTS ONLY micadoapp.user_types DROP CONSTRAINT IF EXISTS user_types_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.topic DROP CONSTRAINT IF EXISTS topic_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.step DROP CONSTRAINT IF EXISTS step_pkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.settings DROP CONSTRAINT IF EXISTS settings_pk;
 ALTER TABLE IF EXISTS ONLY micadoapp.process DROP CONSTRAINT IF EXISTS process_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.migrant_app_config DROP CONSTRAINT IF EXISTS migrant_app_config_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.languages DROP CONSTRAINT IF EXISTS languages_pkey;
@@ -134,6 +135,7 @@ DROP TABLE IF EXISTS micadoapp.topic;
 DROP TABLE IF EXISTS micadoapp.step_translation;
 DROP TABLE IF EXISTS micadoapp.step_document;
 DROP TABLE IF EXISTS micadoapp.step;
+DROP TABLE IF EXISTS micadoapp.settings;
 DROP SEQUENCE IF EXISTS micadoapp.ratings_content_id_seq;
 DROP TABLE IF EXISTS micadoapp.ratings;
 DROP SEQUENCE IF EXISTS micadoapp.process_users_id_user_types_seq;
@@ -165,6 +167,7 @@ DROP TABLE IF EXISTS micadoapp.individual_intervention_plan;
 DROP SEQUENCE IF EXISTS micadoapp.glossary_id_seq;
 DROP TABLE IF EXISTS micadoapp.glossary;
 DROP SEQUENCE IF EXISTS micadoapp.features_flags_translation_id_seq;
+DROP VIEW IF EXISTS micadoapp.features_flags_translated;
 DROP TABLE IF EXISTS micadoapp.features_flags_translation;
 DROP SEQUENCE IF EXISTS micadoapp.features_flags_id_seq;
 DROP TABLE IF EXISTS micadoapp.features_flags;
@@ -694,9 +697,23 @@ ALTER SEQUENCE micadoapp.features_flags_id_seq OWNED BY micadoapp.features_flags
 CREATE TABLE micadoapp.features_flags_translation (
     id smallint NOT NULL,
     lang character varying(10),
-    feature character varying(20),
+    feature character varying(30),
     translation_date timestamp without time zone
 );
+
+
+--
+-- Name: features_flags_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.features_flags_translated AS
+ SELECT f.id,
+    f.flag_key,
+    f.enabled,
+    ft.lang,
+    ft.feature
+   FROM micadoapp.features_flags f,
+    micadoapp.features_flags_translation ft;
 
 
 --
@@ -1208,6 +1225,16 @@ ALTER SEQUENCE micadoapp.ratings_content_id_seq OWNED BY micadoapp.ratings.conte
 
 
 --
+-- Name: settings; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.settings (
+    key character varying NOT NULL,
+    value character varying(1500)
+);
+
+
+--
 -- Name: step; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
@@ -1708,6 +1735,7 @@ COPY micadoapp.event_translation (id, lang, event, description, translation_date
 --
 
 COPY micadoapp.features_flags (id, flag_key, enabled) FROM stdin;
+1	FEAT_DOCUMENTS	f
 \.
 
 
@@ -1716,6 +1744,8 @@ COPY micadoapp.features_flags (id, flag_key, enabled) FROM stdin;
 --
 
 COPY micadoapp.features_flags_translation (id, lang, feature, translation_date) FROM stdin;
+1	it	Portafoglio documenti	2020-04-14 17:54:28.436
+1	en	Document wallet	2020-04-14 17:54:28.436
 \.
 
 
@@ -1832,6 +1862,16 @@ COPY micadoapp.process_users (id_process, id_user_types) FROM stdin;
 --
 
 COPY micadoapp.ratings (user_id, user_tenant, content_id, content_type, value) FROM stdin;
+\.
+
+
+--
+-- Data for Name: settings; Type: TABLE DATA; Schema: micadoapp; Owner: -
+--
+
+COPY micadoapp.settings (key, value) FROM stdin;
+default_language	it
+api_token	eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlpqUm1ZVE13TlRKak9XVTVNbUl6TWpnek5ESTNZMkl5TW1JeVkyRXpNamRoWmpWaU1qYzBaZz09In0.eyJhdWQiOiJodHRwOlwvXC9vcmcud3NvMi5hcGltZ3RcL2dhdGV3YXkiLCJzdWIiOiJhZG1pbkBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6ImFkbWluIiwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJNaWdyYW50QXBwbGljYXRpb24iLCJpZCI6MSwidXVpZCI6bnVsbH0sInNjb3BlIjoiYW1fYXBwbGljYXRpb25fc2NvcGUgZGVmYXVsdCIsImlzcyI6Imh0dHBzOlwvXC9nYXRld2F5Lm1pY2Fkb3Byb2plY3QuZXU6NDQzXC9vYXV0aDJcL3Rva2VuIiwidGllckluZm8iOnsiQnJvbnplIjp7InN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6bnVsbH19LCJrZXl0eXBlIjoiUFJPRFVDVElPTiIsInN1YnNjcmliZWRBUElzIjpbeyJzdWJzY3JpYmVyVGVuYW50RG9tYWluIjoiY2FyYm9uLnN1cGVyIiwibmFtZSI6IlBvc3RnUkVTVEFQSSIsImNvbnRleHQiOiJcL2RiXC92MDEiLCJwdWJsaXNoZXIiOiJhZG1pbiIsInZlcnNpb24iOiJ2MDEiLCJzdWJzY3JpcHRpb25UaWVyIjoiQnJvbnplIn1dLCJjb25zdW1lcktleSI6InZabFNMbTFnYzVOMzIxbnRIN2Ztd2tONTNvVWEiLCJleHAiOjM3MzAyOTc0MzgsImlhdCI6MTU4MjgxMzc5MSwianRpIjoiYmYyMjBiYjMtNjY3MC00OTA5LWI4OTctOTY2ZDVhZDdhN2M0In0.GORnM7Hfflrv8iNFbBOZoLg7475tnLaXwY2f88My_qVCAupJxqPihM901E5GNQUsL2I7PW9_ymbCPJki0FuaIhdXk4ovso11ghjWDkVH9fUoMm_FElNynOlWp7gPDwtXbS5sNI2nZHflvUmc9IYG70XJG6tWhg4hI8bW0sNr03gkQOjQzbUqSqHb__J_oLJye1IGi657oJUtXnVLSDfRHOKl7w8SATrSiR_K57SkT4xGmpLqYGmbXsoWFJT-FHe1-WVrGBvwk2kqZfjgjDUoUedrDR0F9T_YrVIuPtruGqR4gJGWBuXPciOSHYsGu12Oxg3zC1FwoptN0NA2AZ-oTg
 \.
 
 
@@ -2257,6 +2297,14 @@ ALTER TABLE ONLY micadoapp.migrant_app_config
 
 ALTER TABLE ONLY micadoapp.process
     ADD CONSTRAINT process_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: settings settings_pk; Type: CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.settings
+    ADD CONSTRAINT settings_pk PRIMARY KEY (key);
 
 
 --
