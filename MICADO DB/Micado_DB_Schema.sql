@@ -63,6 +63,7 @@ ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF 
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_validator DROP CONSTRAINT IF EXISTS document_type_validator_document_type_id_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_translation DROP CONSTRAINT IF EXISTS document_type_translation_lang_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type_translation DROP CONSTRAINT IF EXISTS document_type_translation_id_fkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.document_pictures DROP CONSTRAINT IF EXISTS document_pictures_fk;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_document_type_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_ask_validate_by_tenant_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp."UM_USER" DROP CONSTRAINT IF EXISTS "UM_USER_UM_TENANT_ID_fkey";
@@ -78,10 +79,13 @@ ALTER TABLE IF EXISTS ONLY micadoapp.languages DROP CONSTRAINT IF EXISTS languag
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_types DROP CONSTRAINT IF EXISTS intervention_types_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_category DROP CONSTRAINT IF EXISTS intervention_category_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.individual_intervention_plan DROP CONSTRAINT IF EXISTS individual_intervention_plan_pkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.glossary DROP CONSTRAINT IF EXISTS glossary_pk;
 ALTER TABLE IF EXISTS ONLY micadoapp.features_flags DROP CONSTRAINT IF EXISTS features_flag_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.event DROP CONSTRAINT IF EXISTS event_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.event_category DROP CONSTRAINT IF EXISTS event_category_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.document_type DROP CONSTRAINT IF EXISTS document_type_pkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.document DROP CONSTRAINT IF EXISTS document_pk;
+ALTER TABLE IF EXISTS ONLY micadoapp.document_pictures DROP CONSTRAINT IF EXISTS document_pictures_pk;
 ALTER TABLE IF EXISTS ONLY micadoapp."UM_USER" DROP CONSTRAINT IF EXISTS "UM_USER_pkey";
 ALTER TABLE IF EXISTS ONLY micadoapp."UM_USER" DROP CONSTRAINT IF EXISTS "UM_USER_UM_USER_NAME_key";
 ALTER TABLE IF EXISTS ONLY micadoapp."UM_USER" DROP CONSTRAINT IF EXISTS "UM_USER_UM_TENANT_ID_key";
@@ -181,6 +185,7 @@ DROP TABLE IF EXISTS micadoapp.event;
 DROP TABLE IF EXISTS micadoapp.document_type_validator;
 DROP TABLE IF EXISTS micadoapp.document_type_translation;
 DROP TABLE IF EXISTS micadoapp.document_type;
+DROP TABLE IF EXISTS micadoapp.document_pictures;
 DROP SEQUENCE IF EXISTS micadoapp.document_id_seq;
 DROP SEQUENCE IF EXISTS micadoapp.document_document_type_seq;
 DROP TABLE IF EXISTS micadoapp.document;
@@ -231,7 +236,6 @@ CREATE TABLE micadoapp."UM_USER" (
 
 CREATE TABLE micadoapp.document (
     id smallint NOT NULL,
-    picture text,
     document_type smallint NOT NULL,
     user_id integer,
     user_tenant integer,
@@ -243,6 +247,34 @@ CREATE TABLE micadoapp.document (
     uploaded_by_me boolean DEFAULT false NOT NULL,
     expiration_date timestamp without time zone
 );
+
+
+--
+-- Name: COLUMN document.user_id; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document.user_id IS 'id of the user owner of the document';
+
+
+--
+-- Name: COLUMN document.ask_validate_by_tenant; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document.ask_validate_by_tenant IS 'if the document is of a type that is validable here is where the owner can ask a potential validator to validate it';
+
+
+--
+-- Name: COLUMN document.uploaded_by_me; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document.uploaded_by_me IS 'this is used to uinderstand if is uploaded by the owner so that he can edit';
+
+
+--
+-- Name: COLUMN document.expiration_date; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document.expiration_date IS 'this will be inserted by hand';
 
 
 --
@@ -286,6 +318,17 @@ ALTER SEQUENCE micadoapp.document_id_seq OWNED BY micadoapp.document.id;
 
 
 --
+-- Name: document_pictures; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.document_pictures (
+    id smallint NOT NULL,
+    picture text,
+    doc_id smallint NOT NULL
+);
+
+
+--
 -- Name: document_type; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
@@ -297,6 +340,20 @@ CREATE TABLE micadoapp.document_type (
     validable boolean DEFAULT false NOT NULL,
     validity_duration smallint
 );
+
+
+--
+-- Name: COLUMN document_type.issuer; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document_type.issuer IS 'free text since not all issuers will have a tenant in MICADO';
+
+
+--
+-- Name: COLUMN document_type.validable; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document_type.validable IS 'if trhis document can be validated';
 
 
 --
@@ -321,6 +378,13 @@ CREATE TABLE micadoapp.document_type_translation (
 
 
 --
+-- Name: COLUMN document_type_translation.template_image; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON COLUMN micadoapp.document_type_translation.template_image IS 'here we save the image of the template of the document, in the translation we could add a commented copy of it';
+
+
+--
 -- Name: document_type_validator; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
@@ -328,6 +392,13 @@ CREATE TABLE micadoapp.document_type_validator (
     document_type_id smallint NOT NULL,
     validable_by_tenant integer
 );
+
+
+--
+-- Name: TABLE document_type_validator; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON TABLE micadoapp.document_type_validator IS 'this table map all the organizations that are eligible to validate that tenant';
 
 
 --
@@ -340,6 +411,13 @@ CREATE TABLE micadoapp.event (
     published boolean DEFAULT false NOT NULL,
     publication_date timestamp without time zone
 );
+
+
+--
+-- Name: TABLE event; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON TABLE micadoapp.event IS 'this is the generic event table for courses, news,  etc that each organization wants to publish';
 
 
 --
@@ -1517,7 +1595,15 @@ COPY micadoapp."UM_USER" ("UM_ID", "UM_USER_NAME", "UM_USER_PASSWORD", "UM_SALT_
 -- Data for Name: document; Type: TABLE DATA; Schema: micadoapp; Owner: -
 --
 
-COPY micadoapp.document (id, picture, document_type, user_id, user_tenant, ask_validate_by_tenant, validated, validation_date, validated_by_tenant, validated_by_user, uploaded_by_me, expiration_date) FROM stdin;
+COPY micadoapp.document (id, document_type, user_id, user_tenant, ask_validate_by_tenant, validated, validation_date, validated_by_tenant, validated_by_user, uploaded_by_me, expiration_date) FROM stdin;
+\.
+
+
+--
+-- Data for Name: document_pictures; Type: TABLE DATA; Schema: micadoapp; Owner: -
+--
+
+COPY micadoapp.document_pictures (id, picture, doc_id) FROM stdin;
 \.
 
 
@@ -2043,6 +2129,22 @@ ALTER TABLE ONLY micadoapp."UM_USER"
 
 
 --
+-- Name: document_pictures document_pictures_pk; Type: CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.document_pictures
+    ADD CONSTRAINT document_pictures_pk PRIMARY KEY (id);
+
+
+--
+-- Name: document document_pk; Type: CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.document
+    ADD CONSTRAINT document_pk PRIMARY KEY (id);
+
+
+--
 -- Name: document_type document_type_pkey; Type: CONSTRAINT; Schema: micadoapp; Owner: -
 --
 
@@ -2072,6 +2174,14 @@ ALTER TABLE ONLY micadoapp.event
 
 ALTER TABLE ONLY micadoapp.features_flags
     ADD CONSTRAINT features_flag_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: glossary glossary_pk; Type: CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.glossary
+    ADD CONSTRAINT glossary_pk PRIMARY KEY (id, lang);
 
 
 --
@@ -2189,6 +2299,14 @@ ALTER TABLE ONLY micadoapp.document
 
 ALTER TABLE ONLY micadoapp.document
     ADD CONSTRAINT document_document_type_fkey FOREIGN KEY (document_type) REFERENCES micadoapp.document_type(id);
+
+
+--
+-- Name: document_pictures document_pictures_fk; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.document_pictures
+    ADD CONSTRAINT document_pictures_fk FOREIGN KEY (doc_id) REFERENCES micadoapp.document(id) ON DELETE CASCADE;
 
 
 --
