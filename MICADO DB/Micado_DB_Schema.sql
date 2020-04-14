@@ -183,6 +183,7 @@ DROP SEQUENCE IF EXISTS micadoapp.event_category_id_seq;
 DROP TABLE IF EXISTS micadoapp.event_category;
 DROP TABLE IF EXISTS micadoapp.event;
 DROP TABLE IF EXISTS micadoapp.document_type_validator;
+DROP VIEW IF EXISTS micadoapp.document_type_translated;
 DROP TABLE IF EXISTS micadoapp.document_type_translation;
 DROP TABLE IF EXISTS micadoapp.document_type;
 DROP TABLE IF EXISTS micadoapp.document_pictures;
@@ -370,7 +371,7 @@ COMMENT ON COLUMN micadoapp.document_type.validity_duration IS 'the duration of 
 CREATE TABLE micadoapp.document_type_translation (
     id smallint NOT NULL,
     lang character varying(10),
-    document character varying(20),
+    document character varying(50),
     description text,
     translation_date timestamp without time zone,
     template_image text
@@ -382,6 +383,26 @@ CREATE TABLE micadoapp.document_type_translation (
 --
 
 COMMENT ON COLUMN micadoapp.document_type_translation.template_image IS 'here we save the image of the template of the document, in the translation we could add a commented copy of it';
+
+
+--
+-- Name: document_type_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.document_type_translated AS
+ SELECT dt.id,
+    dt.icon,
+    dt.issuer,
+    dt.model,
+    dt.validable,
+    dt.validity_duration,
+    dtt.lang,
+    dtt.document,
+    dtt.description,
+    dtt.template_image
+   FROM micadoapp.document_type dt,
+    micadoapp.document_type_translation dtt
+  WHERE (dt.id = dtt.id);
 
 
 --
@@ -1612,6 +1633,7 @@ COPY micadoapp.document_pictures (id, picture, doc_id) FROM stdin;
 --
 
 COPY micadoapp.document_type (id, icon, issuer, model, validable, validity_duration) FROM stdin;
+1	\N	\N	\N	f	-1
 \.
 
 
@@ -1620,6 +1642,8 @@ COPY micadoapp.document_type (id, icon, issuer, model, validable, validity_durat
 --
 
 COPY micadoapp.document_type_translation (id, lang, document, description, translation_date, template_image) FROM stdin;
+1	it	permesso di soggiorno	bla bla	2020-04-14 16:17:39.35	\N
+1	en	residence permit	bla bla	2020-04-14 16:17:39.35	\N
 \.
 
 
@@ -1756,6 +1780,9 @@ COPY micadoapp.intervention_types_translation (id, lang, intervention_title, des
 --
 
 COPY micadoapp.languages (lang, iso_code, name, active) FROM stdin;
+it	it-it	italiano	t
+en	en-us	english	t
+de	de-de	deutch	t
 \.
 
 
