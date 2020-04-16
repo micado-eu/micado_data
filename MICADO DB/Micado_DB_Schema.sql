@@ -33,6 +33,9 @@ ALTER TABLE IF EXISTS ONLY micadoapp.process_translation DROP CONSTRAINT IF EXIS
 ALTER TABLE IF EXISTS ONLY micadoapp.process_translation DROP CONSTRAINT IF EXISTS process_translation_id_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.process_topic DROP CONSTRAINT IF EXISTS process_topic_id_topic_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.process_topic DROP CONSTRAINT IF EXISTS process_topic_id_process_fkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.picture_hotspot_translation DROP CONSTRAINT IF EXISTS picture_hotspot_translation_fk_1;
+ALTER TABLE IF EXISTS ONLY micadoapp.picture_hotspot_translation DROP CONSTRAINT IF EXISTS picture_hotspot_translation_fk;
+ALTER TABLE IF EXISTS ONLY micadoapp.picture_hotspot DROP CONSTRAINT IF EXISTS picture_hotspot_fk;
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_types_translation DROP CONSTRAINT IF EXISTS intervention_types_translation_lang_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_types_translation DROP CONSTRAINT IF EXISTS intervention_types_translation_id_fkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_types DROP CONSTRAINT IF EXISTS intervention_types_fk;
@@ -75,6 +78,7 @@ ALTER TABLE IF EXISTS ONLY micadoapp.topic DROP CONSTRAINT IF EXISTS topic_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.step DROP CONSTRAINT IF EXISTS step_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.settings DROP CONSTRAINT IF EXISTS settings_pk;
 ALTER TABLE IF EXISTS ONLY micadoapp.process DROP CONSTRAINT IF EXISTS process_pkey;
+ALTER TABLE IF EXISTS ONLY micadoapp.picture_hotspot DROP CONSTRAINT IF EXISTS picture_hotspot_pk;
 ALTER TABLE IF EXISTS ONLY micadoapp.migrant_app_config DROP CONSTRAINT IF EXISTS migrant_app_config_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.languages DROP CONSTRAINT IF EXISTS languages_pkey;
 ALTER TABLE IF EXISTS ONLY micadoapp.intervention_types DROP CONSTRAINT IF EXISTS intervention_types_pkey;
@@ -103,6 +107,7 @@ ALTER TABLE IF EXISTS micadoapp.process_translation ALTER COLUMN id DROP DEFAULT
 ALTER TABLE IF EXISTS micadoapp.process_topic ALTER COLUMN id_topic DROP DEFAULT;
 ALTER TABLE IF EXISTS micadoapp.process_topic ALTER COLUMN id_process DROP DEFAULT;
 ALTER TABLE IF EXISTS micadoapp.process ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS micadoapp.picture_hotspot ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS micadoapp.intervention_types_translation ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS micadoapp.intervention_types ALTER COLUMN category_type DROP DEFAULT;
 ALTER TABLE IF EXISTS micadoapp.intervention_types ALTER COLUMN id DROP DEFAULT;
@@ -129,9 +134,11 @@ DROP TABLE IF EXISTS micadoapp.user_types_translation;
 DROP SEQUENCE IF EXISTS micadoapp.user_types_id_seq;
 DROP TABLE IF EXISTS micadoapp.user_types;
 DROP SEQUENCE IF EXISTS micadoapp.topic_translation_id_seq;
+DROP VIEW IF EXISTS micadoapp.topic_translated;
 DROP TABLE IF EXISTS micadoapp.topic_translation;
 DROP SEQUENCE IF EXISTS micadoapp.topic_id_seq;
 DROP TABLE IF EXISTS micadoapp.topic;
+DROP VIEW IF EXISTS micadoapp.step_translated;
 DROP TABLE IF EXISTS micadoapp.step_translation;
 DROP TABLE IF EXISTS micadoapp.step_document;
 DROP TABLE IF EXISTS micadoapp.step;
@@ -142,12 +149,17 @@ DROP SEQUENCE IF EXISTS micadoapp.process_users_id_user_types_seq;
 DROP SEQUENCE IF EXISTS micadoapp.process_users_id_process_seq;
 DROP TABLE IF EXISTS micadoapp.process_users;
 DROP SEQUENCE IF EXISTS micadoapp.process_translation_id_seq;
+DROP VIEW IF EXISTS micadoapp.process_translated;
 DROP TABLE IF EXISTS micadoapp.process_translation;
 DROP SEQUENCE IF EXISTS micadoapp.process_topic_id_topic_seq;
 DROP SEQUENCE IF EXISTS micadoapp.process_topic_id_process_seq;
 DROP TABLE IF EXISTS micadoapp.process_topic;
 DROP SEQUENCE IF EXISTS micadoapp.process_id_seq;
 DROP TABLE IF EXISTS micadoapp.process;
+DROP VIEW IF EXISTS micadoapp.picture_hotspot_translated;
+DROP TABLE IF EXISTS micadoapp.picture_hotspot_translation;
+DROP SEQUENCE IF EXISTS micadoapp.picture_hotspot_id_seq;
+DROP TABLE IF EXISTS micadoapp.picture_hotspot;
 DROP TABLE IF EXISTS micadoapp.migrant_app_config;
 DROP TABLE IF EXISTS micadoapp.languages;
 DROP SEQUENCE IF EXISTS micadoapp.intervention_types_translation_id_seq;
@@ -170,7 +182,6 @@ DROP SEQUENCE IF EXISTS micadoapp.features_flags_translation_id_seq;
 DROP VIEW IF EXISTS micadoapp.features_flags_translated;
 DROP TABLE IF EXISTS micadoapp.features_flags_translation;
 DROP SEQUENCE IF EXISTS micadoapp.features_flags_id_seq;
-DROP TABLE IF EXISTS micadoapp.features_flags;
 DROP SEQUENCE IF EXISTS micadoapp.event_translation_id_seq;
 DROP TABLE IF EXISTS micadoapp.event_translation;
 DROP SEQUENCE IF EXISTS micadoapp.event_topic_id_topic_seq;
@@ -193,6 +204,8 @@ DROP TABLE IF EXISTS micadoapp.document_pictures;
 DROP SEQUENCE IF EXISTS micadoapp.document_id_seq;
 DROP SEQUENCE IF EXISTS micadoapp.document_document_type_seq;
 DROP TABLE IF EXISTS micadoapp.document;
+DROP VIEW IF EXISTS micadoapp.active_features;
+DROP TABLE IF EXISTS micadoapp.features_flags;
 DROP TABLE IF EXISTS micadoapp."UM_USER";
 DROP TABLE IF EXISTS micadoapp."UM_TENANT";
 DROP SCHEMA IF EXISTS micadoapp;
@@ -232,6 +245,27 @@ CREATE TABLE micadoapp."UM_USER" (
     "UM_CHANGED_TIME" timestamp without time zone NOT NULL,
     "UM_TENANT_ID" integer DEFAULT 0
 );
+
+
+--
+-- Name: features_flags; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.features_flags (
+    id smallint NOT NULL,
+    flag_key text,
+    enabled boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: active_features; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.active_features AS
+ SELECT json_agg(features_flags.flag_key) AS features
+   FROM micadoapp.features_flags
+  WHERE (features_flags.enabled = true);
 
 
 --
@@ -660,17 +694,6 @@ ALTER SEQUENCE micadoapp.event_translation_id_seq OWNED BY micadoapp.event_trans
 
 
 --
--- Name: features_flags; Type: TABLE; Schema: micadoapp; Owner: -
---
-
-CREATE TABLE micadoapp.features_flags (
-    id smallint NOT NULL,
-    flag_key text,
-    enabled boolean DEFAULT false NOT NULL
-);
-
-
---
 -- Name: features_flags_id_seq; Type: SEQUENCE; Schema: micadoapp; Owner: -
 --
 
@@ -713,7 +736,8 @@ CREATE VIEW micadoapp.features_flags_translated AS
     ft.lang,
     ft.feature
    FROM micadoapp.features_flags f,
-    micadoapp.features_flags_translation ft;
+    micadoapp.features_flags_translation ft
+  WHERE (f.id = ft.id);
 
 
 --
@@ -1027,6 +1051,67 @@ CREATE TABLE micadoapp.migrant_app_config (
 
 
 --
+-- Name: picture_hotspot; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.picture_hotspot (
+    id smallint NOT NULL,
+    x smallint,
+    y smallint,
+    picture_id smallint
+);
+
+
+--
+-- Name: picture_hotspot_id_seq; Type: SEQUENCE; Schema: micadoapp; Owner: -
+--
+
+CREATE SEQUENCE micadoapp.picture_hotspot_id_seq
+    AS smallint
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: picture_hotspot_id_seq; Type: SEQUENCE OWNED BY; Schema: micadoapp; Owner: -
+--
+
+ALTER SEQUENCE micadoapp.picture_hotspot_id_seq OWNED BY micadoapp.picture_hotspot.id;
+
+
+--
+-- Name: picture_hotspot_translation; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.picture_hotspot_translation (
+    pht_id smallint,
+    lang character varying(10),
+    title character varying(20),
+    message text
+);
+
+
+--
+-- Name: picture_hotspot_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.picture_hotspot_translated AS
+ SELECT ph.id,
+    ph.x,
+    ph.y,
+    ph.picture_id,
+    pht.lang,
+    pht.title,
+    pht.message
+   FROM micadoapp.picture_hotspot ph,
+    micadoapp.picture_hotspot_translation pht
+  WHERE (ph.id = pht.pht_id);
+
+
+--
 -- Name: process; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
@@ -1119,6 +1204,23 @@ CREATE TABLE micadoapp.process_translation (
     description text,
     translation_date timestamp without time zone
 );
+
+
+--
+-- Name: process_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.process_translated AS
+ SELECT p.id,
+    p.link,
+    p.published,
+    p.publication_date,
+    pt.lang,
+    pt.process,
+    pt.description
+   FROM micadoapp.process p,
+    micadoapp.process_translation pt
+  WHERE (p.id = pt.id);
 
 
 --
@@ -1276,6 +1378,27 @@ CREATE TABLE micadoapp.step_translation (
 
 
 --
+-- Name: step_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.step_translated AS
+ SELECT s.id,
+    s.previous,
+    s.cost,
+    s.location_specific,
+    s.location,
+    s.location_lon,
+    s.location_lat,
+    s.id_process,
+    st.lang,
+    st.step,
+    st.description
+   FROM micadoapp.step s,
+    micadoapp.step_translation st
+  WHERE (s.id = st.id);
+
+
+--
 -- Name: topic; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
@@ -1315,6 +1438,20 @@ CREATE TABLE micadoapp.topic_translation (
     topic character varying(20),
     translation_date timestamp without time zone
 );
+
+
+--
+-- Name: topic_translated; Type: VIEW; Schema: micadoapp; Owner: -
+--
+
+CREATE VIEW micadoapp.topic_translated AS
+ SELECT t.id,
+    t.icon,
+    tt.lang,
+    tt.topic
+   FROM micadoapp.topic t,
+    micadoapp.topic_translation tt
+  WHERE (t.id = tt.id);
 
 
 --
@@ -1547,6 +1684,13 @@ ALTER TABLE ONLY micadoapp.intervention_types_translation ALTER COLUMN id SET DE
 
 
 --
+-- Name: picture_hotspot id; Type: DEFAULT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.picture_hotspot ALTER COLUMN id SET DEFAULT nextval('micadoapp.picture_hotspot_id_seq'::regclass);
+
+
+--
 -- Name: process id; Type: DEFAULT; Schema: micadoapp; Owner: -
 --
 
@@ -1660,7 +1804,11 @@ COPY micadoapp.document_pictures (id, picture, doc_id) FROM stdin;
 --
 
 COPY micadoapp.document_type (id, icon, issuer, model, validable, validity_duration) FROM stdin;
-1	\N	\N	\N	f	-1
+1	data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAADnZJREFUeNrsnQlYU8cWgG9WQlYIS1hFoILIjqAiVdCiKIo+q33udelibV8LWLE+kKIWtb5abdXWaq22LrWIiqC41l0UEBAVRWVVNCgQIAlZyPrO1FitS1shUMA533c+7s2dTCbzz5lzzty5gaTX6wksHUfIuAswECwYCAaCBQPBQLBgIBgIFgwEA8GCgWDBQDAQLBgIBoIFA8FAsGAgGAgWDAQLBoKBYMFAOrtQjVnZ4s+/JsrKbwfQaJTRcNoTtDsorYv2nQz0jFqjzXdxckxLio/RGaNSkrE2yiUvXxOcceBorFqjCa1vaLTWaLRqeFnaRWGgTqNTKRQOn2+mMjUxKfLwcEtxtLdZsTA+VvePAlm07GvijrA6sbi45IPqmlpBQ4M4feM3yzc7d3cUwmWlofFdUSi3bt+1mjk77lULvtk7bDbLjkalpkVGDJ63MD6mtOWoAUhLNfGzL4mggVEL/IKH6y26+Z3Zu+9wxPncAjuNRtOqejuLarVaAr4vMz3ziJ9Vd//kvmGj9YEDRmYnLVnZo6V1tqpBo/791kxogBYak5GyZ78XauDLAOJJ1el0xK70A2xr54AZD6BEZSQs+qJ9gSxcusp+YMQbFQAjD8F4GUE8qalpmSYAJQmA6CP+9WZcuwIZMXb6l25+Yfrdew8MxjAe6e6MQ/aegeHnXh0ytgqmLsaLvp/csvB2NVssaRqv0+kPhg3odwFnD49kYP8+QuG9muXNzSqHs+cuTGqXxPB0Vm4/pbLZXlRfv1XaJFNgDI+EzWLqN6xZliuXK8pMTRnj2wUI05ThIZPLiXVfLS20trLUYAyPhMEwIYYOHiBXqdU5cOrdXksnfiqVqiJiSKgERgGm8GQKL1foSSRSExyathcQc/hAiUwmx8/D/Xnf6toLiBYvTHaCxcWOIBcvXyW2/LzHl8dlW8OpJaizYQkHLeXUgMqRww0bGFwbOXTQywtkx84M96vXb46l02nucHq7sVGyLmHeh0ILvlmr6867eJn4JTWDz+VyZly7XhqWm1fowWSaWkilTWZo9cDcjKfT6nT30foTsmyVSi0sunazOq/gcoFCoTwe3Cfg9KgRQ1QvDZAtP+/uvX7Tz4tr60ThVAqFjl6TK5QhtXX1HyTO/6jY7RXnFtd9If8SkZS8cuqN0vK3NRrtQA0IBBpnamrrDo4fF1XS3dGBsmlryjQzHscXnO0OqVR2E/yfx5Wr14MuFxVHsFim7xRcuppzoeDygaAAn58AjKzLAzly7PR7Yokk0oJvTjxcXTYz4w46fOxU1PSpb1QAEOWL1pmTV0ik7z/Svaz8Vmxl1d1Zeh3RPHxI2KLhEYPOweUSpVIpDO7Tu/lmaTmC70WlUnsFBwVkwvXtcJ2PprKCwive36zfMhgS3KmVlVUjcvIuRhQUFm3z9/VMHT1yaNcFwmIxUYcQjy/1QydAEsXyo1GpfMP8/peSlZ1PHD56Et7GDMy/eKVPbv6lSJiOQslk0s+vjx72edJ/o69wOOw/vOfK1WK0PlSpUDTTvL08zEePGIJerkcKx/kh/YJSyipu7Vi9bvMEUX3jm9tS0oKOnTrXB5q3ekzU0Kqu6kO0T4V3ZDLR0CiubVapZH/Dwojs3ALvS1euT4ZR7QHJVw8Gg9HD1saaCpDFOvAPkKj6bt62q7+yuRn5CZLhM4Vl5ZU14FvsKWQKcfZcbn8olw2vc0BFdBq1HOgSVXeEh6lUynUYHDVWlhYxEol07jfrf/QuKas4CuVuoHo0anWRq4uTavzYqM4PhE6jfQEd1wvlLw9hlFfcVs6f8/7+AF9P8d+wjLD1G7cl29oKQmxsrH+3NMNfKotpOu18TsE7J06ff/gWkiEHEJnQ6Y1gUXao7I2SskiIwtwMCZsE9B5y9DQaleCw2TIAy4VyaggIqI1iScSmLSmD4TqyEhH4pwo7W+vqu8L718BNnXbqZn+9LeC0OZA96QeJkrLKdBqNNgVO0dqOM1hGxeLEOTsYJows3d+4Y2nJNx/D43FDTEzov8NAUMUSKQEOmsXlsFloyQLpE8J5MD0+yM/odDoPtPezPuNhmYegob0E09SU1iSTuVha8F30el0Q+CJiw6btUo1WV2hpaZ6qVmvWTJkwxujZZBvCOERasXpD/L37td/CdIDi2xTQJAqFslmpbOZv3bF7Tewni+eL6hs4z6vj2Mks4lRWjiWM2sdfrgYYK6dNGvvuxHGjZgur76c2Ncn0CFJrBQATMI0S0Obzvj69ohcv+PgdsJYkYJQPESIEIzyOlaX5ALlcmbhzT6Z/p7GQ1LRM4qu1P8yDUZUIYSi6LzABXi5EOQiMaMF3G7cNgE5mlZZXqv+btLz2kznvb3N17tb8ZD0nTmfbgAMX2AisfusssViSS6ZQFkDnFEqbZLz6hkb11AljMjVabc6O1Iy5drYCm8dH+4vCAP+hc+/hmh71XvjHu9IP1NY3NtoBaLRZYxfoUtDRyEjB5yDLHIty0U5hIb+k7guSNjXFAAuGYZpB/gOlxtOgw4aBo2WhyMvWRkDblXZgfl1dfc9nRmhMU2eYiqxQHWAVwulT3pgfFRleApdW7t13ePehoyd3KZTKiYMGBH8/KjJ8O0BqcZuRZXj1cs+aOW18bJ2o3rmktDJ1zbc/7oKO/w4u24DOAb1pKI62Nzm0xQJYmwiXy34dOpz3V7ta0Gi2t7d5ZXtKmhuEn09db5LJGZBNc9DoBT0BnVaoVqljoN4p4Kx9BNZWgdtS9iYDiPDXRw3bJpPJ77S0zSqVSu7t6Z4W4OcpXrrimx8tLcyH8Xgcb2jjKLi8DBRtbVprKI6OazuTU3cg/ubyM4/LJdZt3Oo1OCwk3dXZ6Q9LGJFDw4qLrl4/kl94ZRYA0GzemsoDH+7KZjN/y2UQUDinwbTiXSdqOAu5RBOF0rJxBg6cLhI13G1uVnlBfuP4+NQHg8FRrVb7gpXeeGBNaib4FmGnAQIN3wfO2tSEbuICp46gKGN7/OYJ8hcNKPSEqa307ekT8308n561QoID733KiP787PkLQvBFl06cOt8AcJqYzD/eh4H8QhoU4KNYlBC7Cq61aCqBDpf0dHsF+SYUgKC5j/XQt4CV6sFaSt6dOQnlN59ptboma0uLXzsNkCnjx+x8LSzkDDhfJzh1MgCxA0WxKbp5U2fImIUSaVPJW2+OF/Gfs9DY29+7EnQxOoZOJ5KWfrW94OKVHhAUoBBWA5aRVisSHXV3c5WCbmht20+eybYEH/IVOO5YOGWqNZrbDrY2W+Oi370xcng4KvJpp0sMXx897Lfw1KDZxqrX39eLWJwwZ/+vJ87WgMMPRXDlCsW+kH5Bd4z1GS7O3eoSP/nof2wWswINIgBSCFPp8RHDBned5Xdjip9PL6S5cJjbFvV3c7Aj4mJmoUz+h/b+bviuXwcTDAQDwYKBdCJpM6d+5twF9v2aWjsKhYKWGIy5XYikUChIA0P6ljvY28qfV0hYfZ84cfq8AEJjAQqNjT2QIWmUQfJYMTi0f8cHknnouPWSL9bOuyus7kelUlHeoTNmZ0ilMmLYkNC0ebHvrffq5S56skDRtZvEiq/Xh2YePhHN5bDQDXtjb2AgQ6Yu8vH0WAlAjnR4IMU3StkqlaqPKYPhQiaTjb2ZjoTuclTdqXauvl/LfBYQsEzi9p27Lhw2K8CETqcTbfEUF4lkTqfT+sBRxwcyN/rdcitL/qzS8lt2NBqVZOwpSyyWkqZPGZfn7dmz4VkFXgsLIWxtrHdu/CmlyIzH4bfBlEXSaLQye1tBQafxIdMmjytGxvJPOcdePXvIVi5b0OkelcBR1ssSZRUUFjFF9Q3W4EOoxp6ylM3NmkB/77sCayv18wrV1IrQJjoLBsPEgnjGrpfWtgGiLAWXw7nbN8ivQwD5U79wOiuHnbBoRUzlrapg8CEMY0dZjWKJcurEsXvnfPj2TidH+6d2rYDvIlat/b7vL6n7ZvF4HNe2irJ8vTy+PrDnx6yOAAQ5ScrzLh4/dY4jlyvGcbkcXzKJZHTr47DZxPebd2hcnLsdjZ494ykgN0vKiYuXrvpbWvIn0Wk0kzaZWmhqJUSR1+HweUD0hoHbLkCq9Hr9a5B0PfMDF8bHVsN0EgMdgyzE2GEn8nvq4L69MyDKqnxWgciIQYS9nWDH2vVbJOZmXC/iwe53YwpFo9Xec7S32/AXs8iLzwwtedI0fOTkCe7+g/S70w/2UyiUZPz07R+1sVFs3sM39NjIcTPy2uUp3FeDA/MEVpaymbPjxkmk0jaZEjqrQMBBOnkm255Gow2E0/3tEvYmxceUWllZnLMRWEdlZec7YAyPRNoko82YHTeZzTQllMrmPe2Wh8jl8iVcDtPtvej4j3ZnHGTqCfy4IZLs3Iu9bQRWH+j0+uN9Av0utxuQ3v4+p/QEKdXZyfE/s6MTJu3ee5D6Mv9PRPTN0/cf8X7r/bhVFnxzzbAhgxYsSYprQUWtcF5JS1bZBg2MykI/uGLlFDB7V9oBu5ftB2jQ983JK6RnHjoeYu0ccCxwwEjdyHEz57S0vlZl6gvjY6oB6ZuZh09sdnF2/HZ2bMJwGp22BpK1criM8gMZ0TV/L0tvSBn4t6uEZtNmzQm34Jsl2tsKSCDJ3p7uK1u8BGCMaSYpeaXg4NGTX0JsHllf32hOJpMvQcPyUdJMPNhySepiQFB+gXbsh1DIZB82h2VtQqfn93RzXWRvZ7Mv+dO5xD8K5DdrWbKKKL9VFUqlUGbcgIRQJpebQ5bOM4wkfRe0EDk4bjHT1FTYw7X79m4Odls++3SuuLUVk9rCEScvX00vvlHmRKfTUJbMNPJa1j8tJMPa2C21WnPL1cWpZlFCrPEqx/8tumMJvh+CgWDBQDAQLBgIBoIFA8FAsGAgGAgWDAQLBoKBYMFAMBAsGAgGggUDwUCwYCBYMJBOIf8XYAArY0Bkcsrf+QAAAABJRU5ErkJggg==	\N	\N	f	-1
+2	\N	\N	\N	f	-1
+3	\N	\N	\N	f	-1
+4	\N	\N	\N	f	-1
+5	\N	\N	\N	f	-1
 \.
 
 
@@ -1671,6 +1819,10 @@ COPY micadoapp.document_type (id, icon, issuer, model, validable, validity_durat
 COPY micadoapp.document_type_translation (id, lang, document, description, translation_date, template_image) FROM stdin;
 1	it	permesso di soggiorno	bla bla	2020-04-14 16:17:39.35	\N
 1	en	residence permit	bla bla	2020-04-14 16:17:39.35	\N
+2	en	module	bla bla	2020-04-14 16:17:39.35	\N
+3	en	payment order	bla bla	2020-04-14 16:17:39.35	\N
+4	en	application module	bla bla	2020-04-14 16:17:39.35	\N
+5	en	stamp duty	bla bla	2020-04-14 16:17:39.35	\N
 \.
 
 
@@ -1736,6 +1888,8 @@ COPY micadoapp.event_translation (id, lang, event, description, translation_date
 
 COPY micadoapp.features_flags (id, flag_key, enabled) FROM stdin;
 1	FEAT_DOCUMENTS	f
+2	FEAT_GLOSSARY	t
+3	FEAT_ASSISTANT	t
 \.
 
 
@@ -1822,6 +1976,22 @@ de	de-de	deutch	t
 
 COPY micadoapp.migrant_app_config (id, features) FROM stdin;
 1	["FEAT_DOCUMENTS","FEAT_GLOSSARY","FEAT_ASSISTANT","FEAT_SERVICES","FEAT_TASKS","FEAT_DEFAULT"]
+\.
+
+
+--
+-- Data for Name: picture_hotspot; Type: TABLE DATA; Schema: micadoapp; Owner: -
+--
+
+COPY micadoapp.picture_hotspot (id, x, y, picture_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: picture_hotspot_translation; Type: TABLE DATA; Schema: micadoapp; Owner: -
+--
+
+COPY micadoapp.picture_hotspot_translation (pht_id, lang, title, message) FROM stdin;
 \.
 
 
@@ -2079,6 +2249,13 @@ SELECT pg_catalog.setval('micadoapp.intervention_types_translation_id_seq', 1, f
 
 
 --
+-- Name: picture_hotspot_id_seq; Type: SEQUENCE SET; Schema: micadoapp; Owner: -
+--
+
+SELECT pg_catalog.setval('micadoapp.picture_hotspot_id_seq', 1, false);
+
+
+--
 -- Name: process_id_seq; Type: SEQUENCE SET; Schema: micadoapp; Owner: -
 --
 
@@ -2292,6 +2469,14 @@ ALTER TABLE ONLY micadoapp.migrant_app_config
 
 
 --
+-- Name: picture_hotspot picture_hotspot_pk; Type: CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.picture_hotspot
+    ADD CONSTRAINT picture_hotspot_pk PRIMARY KEY (id);
+
+
+--
 -- Name: process process_pkey; Type: CONSTRAINT; Schema: micadoapp; Owner: -
 --
 
@@ -2365,7 +2550,7 @@ ALTER TABLE ONLY micadoapp."UM_USER"
 --
 
 ALTER TABLE ONLY micadoapp.document
-    ADD CONSTRAINT document_ask_validate_by_tenant_fkey FOREIGN KEY (ask_validate_by_tenant) REFERENCES micadoapp."UM_USER"("UM_TENANT_ID");
+    ADD CONSTRAINT document_ask_validate_by_tenant_fkey FOREIGN KEY (ask_validate_by_tenant) REFERENCES wso2_shared.um_tenant(um_id);
 
 
 --
@@ -2622,6 +2807,30 @@ ALTER TABLE ONLY micadoapp.intervention_types_translation
 
 ALTER TABLE ONLY micadoapp.intervention_types_translation
     ADD CONSTRAINT intervention_types_translation_lang_fkey FOREIGN KEY (lang) REFERENCES micadoapp.languages(lang) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: picture_hotspot picture_hotspot_fk; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.picture_hotspot
+    ADD CONSTRAINT picture_hotspot_fk FOREIGN KEY (picture_id) REFERENCES micadoapp.document_pictures(id) ON DELETE CASCADE;
+
+
+--
+-- Name: picture_hotspot_translation picture_hotspot_translation_fk; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.picture_hotspot_translation
+    ADD CONSTRAINT picture_hotspot_translation_fk FOREIGN KEY (pht_id) REFERENCES micadoapp.picture_hotspot(id);
+
+
+--
+-- Name: picture_hotspot_translation picture_hotspot_translation_fk_1; Type: FK CONSTRAINT; Schema: micadoapp; Owner: -
+--
+
+ALTER TABLE ONLY micadoapp.picture_hotspot_translation
+    ADD CONSTRAINT picture_hotspot_translation_fk_1 FOREIGN KEY (lang) REFERENCES micadoapp.languages(lang) ON DELETE CASCADE;
 
 
 --
