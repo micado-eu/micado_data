@@ -460,6 +460,46 @@ COMMENT ON TABLE micadoapp.document_type_validator IS 'this table map all the or
 
 
 --
+-- Name: info; Type: TABLE; Schema: micadoapp; Owner: -
+--
+
+CREATE TABLE micadoapp.info (
+    id smallint NOT NULL,
+    lang character varying(10) NOT NULL,
+    title character varying(20),
+    description text,
+    translation_date timestamp without time zone
+);
+
+
+--
+-- Name: TABLE document_type_validator; Type: COMMENT; Schema: micadoapp; Owner: -
+--
+
+COMMENT ON TABLE micadoapp.info IS 'this table contains all the generic information that PAs make available to migrants';
+
+
+--
+-- Name: info_id_seq; Type: SEQUENCE; Schema: micadoapp; Owner: -
+--
+
+CREATE SEQUENCE micadoapp.info_id_seq
+    AS smallint
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: info_id_seq; Type: SEQUENCE OWNED BY; Schema: micadoapp; Owner: -
+--
+
+ALTER SEQUENCE micadoapp.info_id_seq OWNED BY micadoapp.info.id;
+
+
+--
 -- Name: event; Type: TABLE; Schema: micadoapp; Owner: -
 --
 
