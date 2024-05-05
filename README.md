@@ -1,3 +1,5 @@
+# ALERT!!! this repo is archived since not needed anymore after the conclusion of the project
+
 This is the repository that hosts the data collection for the MICADO project.
 
 The need of the project is to collect data of different typologies:
